@@ -1,0 +1,36 @@
+{
+  "name": "openclaw-service",
+  "version": "1.0.0",
+  "description": "OpenCLAW Service - Multi-process management service",
+  "main": "openclaw-service.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "semantic-release"
+  },
+  "name": "openclaw-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "openclaw-service.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamerzho/openclaw-service.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dreamerzho/openclaw-service/issues"
+  },
+  "homepage": "https://github.com/dreamerzho/openclaw-service#readme",
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/github": "^12.0.6",
+    "@semantic-release/npm": "^13.1.4",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "semantic-release": "^25.0.3"
+  }
+}
