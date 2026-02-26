@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenCLAW Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', system-ui, sans-serif; 
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh; padding: 20px; color: #fff;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 30px; font-size: 2rem; }
+    .token { 
+      background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;
+      text-align: center; margin-bottom: 20px; font-family: monospace;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .card {
+      background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+    .card h3 { font-size: 0.9rem; color: #888; margin-bottom: 10px; }
+    .status {
+      display: inline-block; padding: 6px 14px; border-radius: 20px;
+      font-weight: 600; font-size: 0.85rem;
+    }
+    .running { background: #10b981; color: #fff; }
+    .waiting { background: #f59e0b; color: #fff; }
+    .stopped { background: #ef4444; color: #fff; }
+    .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    .btn {
+      flex: 1; min-width: 70px; padding: 10px; border: none; border-radius: 8px; cursor: pointer;
+      font-weight: 600; transition: opacity 0.2s; font-size: 0.85rem;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-start { background: #10b981; color: #fff; }
+    .btn-stop { background: #ef4444; color: #fff; }
+    .btn-all { background: #3b82f6; color: #fff; }
+    .btn-restart { background: #8b5cf6; color: #fff; }
+    .alert {
+      background: #fbbf24; color: #000; padding: 15px; border-radius: 8px;
+      margin-bottom: 20px; display: none;
+    }
+    .alert.show { display: block; }
+    .footer { text-align: center; color: #666; margin-top: 30px; font-size: 0.85rem; }
+    .status-detail { font-size: 0.75rem; color: #888; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OpenCLAW Monitor</h1>
+    
+    <div class="token">
+      <strong>Gateway Token:</strong><br>
+      753ea8f7509fecb79f279d474fc59181df636b2772cb83dd
+    </div>
+
+    <div id="alert" class="alert">
+      <strong>Warning:</strong> Browser Relay is not connected! 
+      <br><small>Please click the OpenCLAW Chrome extension icon on a tab to attach.</small>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>SSH Tunnel</h3>
+        <span id="status-ssh" class="status stopped">Checking...</span>
+        <div class="btn-group">
+          <button class="btn btn-start" onclick="start('ssh')">Start</button>
+          <button class="btn btn-stop" onclick="stop('ssh')">Stop</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>OpenCLAW Node</h3>
+        <span id="status-node" class="status stopped">Checking...</span>
+        <div class="btn-group">
+          <button class="btn btn-start" onclick="start('node')">Start</button>
+          <button class="btn btn-stop" onclick="stop('node')">Stop</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Browser Relay</h3>
+        <span id="status-browser" class="status stopped">Checking...</span>
+        <div id="browser-detail" class="status-detail"></div>
+        <div class="btn-group">
+          <button class="btn btn-start" onclick="start('browser')">Start</button>
+          <button class="btn btn-stop" onclick="stop('browser')">Stop</button>
+          <button class="btn btn-restart" onclick="restartRelay()">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group" style="max-width: 500px; margin: 0 auto 20px;">
+      <button class="btn btn-all" onclick="startAll()">Start All</button>
+      <button class="btn btn-stop" onclick="stopAll()">Stop All</button>
+    </div>
+
+    <div class="footer">
+      <span id="uptime"></span> | Auto-refresh every 5s
+    </div>
+  </div>
+
+  <script>
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        // SSH
+        updateCard('ssh', data.status.ssh?.running);
+        
+        // Node
+        updateCard('node', data.status.node?.running);
+        
+        // Browser - distinguish running/connected/not connected
+        const browserStatus = document.getElementById('status-browser');
+        const browserDetail = document.getElementById('browser-detail');
+        
+        if (data.relayConnected) {
+          browserStatus.textContent = '● Connected';
+          browserStatus.className = 'status running';
+          browserDetail.textContent = 'Tab attached';
+        } else if (data.relayRunning) {
+          browserStatus.textContent = '◐ Waiting';
+          browserStatus.className = 'status waiting';
+          browserDetail.textContent = data.relayStatus || 'Click extension to connect';
+        } else {
+          browserStatus.textContent = '○ Stopped';
+          browserStatus.className = 'status stopped';
+          browserDetail.textContent = '';
+        }
+
+        // Yellow warning only shows when actually not connected
+        const alert = document.getElementById('alert');
+        if (!data.relayConnected && data.relayRunning) {
+          alert.classList.add('show');
+        } else {
+          alert.classList.remove('show');
+        }
+
+        document.getElementById('uptime').textContent = 'Uptime: ' + Math.floor(data.uptime) + 's';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    function updateCard(key, running) {
+      const el = document.getElementById('status-' + key);
+      if (running) {
+        el.textContent = '● Running';
+        el.className = 'status running';
+      } else {
+        el.textContent = '○ Stopped';
+        el.className = 'status stopped';
+      }
+    }
+
+    async function start(key) {
+      await fetch('/api/start', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ key })
+      });
+    }
+
+    async function stop(key) {
+      await fetch('/api/stop', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ key })
+      });
+    }
+    
+    async function restartRelay() {
+      await fetch('/api/restart-relay', { method: 'POST' });
+    }
+
+    async function startAll() {
+      await fetch('/api/start-all', { method: 'POST' });
+    }
+
+    async function stopAll() {
+      await fetch('/api/stop-all', { method: 'POST' });
+    }
+
+    updateStatus();
+    setInterval(updateStatus, 5000);
+  </script>
+</body>
+</html>
