@@ -67,7 +67,14 @@ function spawnProcess(key, config) {
     if (key === 'browser') {
       const isNoTab = outputBuffer.includes('no tab is connected');
       const isGatewayClosed = outputBuffer.includes('gateway closed');
-      if (isNoTab || isGatewayClosed) { log('WARN', `${config.name} waiting for connection`); return; }
+      if (isNoTab || isGatewayClosed) { 
+        log('WARN', `${config.name} waiting for user to click extension... retrying every 3s`);
+        // 持续重试，直到用户点击插件连接
+        if (autoRestart) {
+          setTimeout(() => spawnProcess(key, config), 3000);
+        }
+        return; 
+      }
     }
     
     if (autoRestart && code !== 0 && restartCount[key] < 10) {
