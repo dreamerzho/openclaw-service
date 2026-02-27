@@ -4,10 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 const CONFIG = {
-  ssh: { cmd: 'ssh', args: ['-N', '-L', '18789:127.0.0.1:18789', '-i', 'C:\\Users\\Administrator\\.ssh\\sshclaw.pem', 'root@43.134.106.176'], name: 'SSH Tunnel' },
+  ssh: { 
+    cmd: 'ssh', 
+    args: ['-N', '-L', '18789:127.0.0.1:18789', '-i', process.env.SSH_KEY_PATH, process.env.SSH_HOST], 
+    name: 'SSH Tunnel' 
+  },
   node: { cmd: 'openclaw', args: ['node', 'run'], name: 'OpenCLAW Node' },
   browser: { cmd: 'openclaw', args: ['browser', 'start'], name: 'Browser Relay' },
-  port: 18888,
+  port: process.env.PORT || 18888,
   checkInterval: 5000
 };
 
@@ -127,6 +131,14 @@ function startServer() {
 }
 
 log('INFO', '========== OpenCLAW Service Starting ==========');
+
+// Validate required environment variables
+if (!process.env.SSH_KEY_PATH || !process.env.SSH_HOST) {
+  log('ERROR', 'Missing required env vars: SSH_KEY_PATH, SSH_HOST');
+  console.error('ERROR: Set SSH_KEY_PATH and SSH_HOST environment variables');
+  process.exit(1);
+}
+
 killPort(18789, () => { killPort(18888, () => {
   startServer();
   setTimeout(() => { spawnProcess('ssh', CONFIG.ssh); }, 1000);
