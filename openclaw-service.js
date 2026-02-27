@@ -115,19 +115,43 @@ function getBrowserRelayStatus(callback) {
   });
 }
 
+// Track previous relay state for change detection
+let lastRelayConnected = null;
+
+function checkBrowserHealth() {
+  getBrowserRelayStatus((browserStatus) => {
+    const wasConnected = lastRelayConnected;
+    const isConnected = browserStatus.connected;
+    
+    // Detect disconnection
+    if (wasConnected === true && isConnected === false) {
+      log('WARN', 'Browser Relay disconnected!');
+      notify('OpenCLAW', 'Browser Relay disconnected! Please reconnect.');
+    }
+    
+    lastRelayConnected = isConnected;
+    
+    // Update status
+    status.browser.running = browserStatus.running;
+    if (browserStatus.running) {
+      status.browser.lastCheck = new Date().toISOString();
+    } else if (status.browser.running && status.browser.lastCheck) {
+      // Browser was running but now stopped - restart it
+      spawnProcess('browser', CONFIG.browser);
+    }
+  });
+}
+
 function healthCheck() {
   if (!autoRestart) return;
+  
+  // Check browser relay status with change detection
+  checkBrowserHealth();
+  
+  // Check other processes
   Object.keys(CONFIG).forEach(key => {
-    if (key === 'port' || key === 'checkInterval') return;
+    if (key === 'port' || key === 'checkInterval' || key === 'browser') return;
     const config = CONFIG[key];
-    
-    if (key === 'browser') {
-      checkChromeRunning(isRunning => {
-        if (isRunning) { status[key].running = true; status[key].lastCheck = new Date().toISOString(); }
-        else if (status[key].running && status[key].lastCheck) { spawnProcess(key, config); }
-      });
-      return;
-    }
     
     if (processes[key] && status[key].running) { status[key].lastCheck = new Date().toISOString(); }
     else if (!status[key].running && status[key].lastCheck) { spawnProcess(key, config); }
