@@ -103,6 +103,18 @@ function checkChromeRunning(callback) {
   });
 }
 
+// Check real browser relay status using openclaw CLI
+function getBrowserRelayStatus(callback) {
+  exec('openclaw browser status', (err, stdout) => {
+    if (err || !stdout) {
+      callback({ running: false, connected: false });
+      return;
+    }
+    const isRunning = stdout.includes('running: true');
+    callback({ running: isRunning, connected: isRunning });
+  });
+}
+
 function healthCheck() {
   if (!autoRestart) return;
   Object.keys(CONFIG).forEach(key => {
@@ -130,8 +142,17 @@ function startServer() {
     const url = req.url.split('?')[0];
     
     if (url === '/api/status') { 
-      res.writeHead(200, { 'Content-Type': 'application/json' }); 
-      res.end(JSON.stringify({ status, uptime: process.uptime(), config: { gatewayToken: process.env.GATEWAY_TOKEN || '' } })); 
+      // Get real browser relay status
+      getBrowserRelayStatus((browserStatus) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' }); 
+        res.end(JSON.stringify({ 
+          status, 
+          uptime: process.uptime(), 
+          relayConnected: browserStatus.connected,
+          relayRunning: browserStatus.running,
+          config: { gatewayToken: process.env.GATEWAY_TOKEN || '' } 
+        })); 
+      });
       return; 
     }
     if (url === '/api/start' && req.method === 'POST') { let body = ''; req.on('data', c => body += c); req.on('end', () => { const {key} = JSON.parse(body); restartCount[key] = 0; if (CONFIG[key]) spawnProcess(key, CONFIG[key]); res.writeHead(200); res.end('{"success":true}'); }); return; }
