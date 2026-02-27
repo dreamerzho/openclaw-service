@@ -142,6 +142,11 @@
         }
 
         document.getElementById('uptime').textContent = 'Uptime: ' + Math.floor(data.uptime) + 's';
+        
+        // Update token
+        if (data.config && data.config.gatewayToken) {
+          document.getElementById('token').textContent = data.config.gatewayToken;
+        }
       } catch (e) {
         console.error(e);
       }

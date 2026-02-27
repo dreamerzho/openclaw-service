@@ -3,6 +3,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const CONFIG = {
   ssh: { 
     cmd: 'ssh', 
@@ -119,7 +122,11 @@ function startServer() {
     if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
     const url = req.url.split('?')[0];
     
-    if (url === '/api/status') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ status, uptime: process.uptime() })); return; }
+    if (url === '/api/status') { 
+      res.writeHead(200, { 'Content-Type': 'application/json' }); 
+      res.end(JSON.stringify({ status, uptime: process.uptime(), config: { gatewayToken: process.env.GATEWAY_TOKEN || '' } })); 
+      return; 
+    }
     if (url === '/api/start' && req.method === 'POST') { let body = ''; req.on('data', c => body += c); req.on('end', () => { const {key} = JSON.parse(body); restartCount[key] = 0; if (CONFIG[key]) spawnProcess(key, CONFIG[key]); res.writeHead(200); res.end('{"success":true}'); }); return; }
     if (url === '/api/stop' && req.method === 'POST') { let body = ''; req.on('data', c => body += c); req.on('end', () => { const {key} = JSON.parse(body); killProcess(key); res.writeHead(200); res.end('{"success":true}'); }); return; }
     if (url === '/api/start-all') { Object.keys(CONFIG).forEach(k => { if (k !== 'port' && k !== 'checkInterval') { restartCount[k] = 0; spawnProcess(k, CONFIG[k]); } }); res.writeHead(200); res.end('{"success":true}'); return; }
