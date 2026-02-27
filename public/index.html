@@ -88,7 +88,6 @@
         <div class="btn-group">
           <button class="btn btn-start" onclick="start('browser')">Start</button>
           <button class="btn btn-stop" onclick="stop('browser')">Stop</button>
-          <button class="btn btn-restart" onclick="restartRelay()">Restart</button>
         </div>
       </div>
     </div>
@@ -133,9 +132,9 @@
           browserDetail.textContent = '';
         }
 
-        // Yellow warning only shows when actually not connected
+        // Yellow warning: show when relay is not connected or not running
         const alert = document.getElementById('alert');
-        if (!data.relayConnected && data.relayRunning) {
+        if (!data.relayConnected || !data.relayRunning) {
           alert.classList.add('show');
         } else {
           alert.classList.remove('show');
